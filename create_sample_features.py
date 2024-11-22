@@ -7,6 +7,7 @@ import multiprocessing
 
 import diptest
 import hermpy.trajectory as traj
+from hermpy.utils import User
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -17,15 +18,15 @@ def main():
 
     # Load samples csv
     ms_samples_data_set = pd.read_csv(
-        "./magnetosheath_sample_10_mins.csv",
-        parse_dates=["crossing_start", "crossing_end"],
+        "/home/daraghhollman/Main/Work/mercury/DataSets/magnetosheath_sample_10_mins.csv",
+        parse_dates=["Crossing Start", "Crossing End"],
     )
     sw_samples_data_set = pd.read_csv(
-        "./solar_wind_sample_10_mins.csv",
-        parse_dates=["crossing_start", "crossing_end"],
+        "/home/daraghhollman/Main/Work/mercury/DataSets/solar_wind_sample_10_mins.csv",
+        parse_dates=["Crossing Start", "Crossing End"],
     )
 
-    outputs = ["./magnetosheath_features.csv", "./solar_wind_features.csv"]
+    outputs = ["/home/daraghhollman/Main/Work/mercury/DataSets/magnetosheath_features.csv", "/home/daraghhollman/Main/Work/mercury/DataSets/solar_wind_features.csv"]
 
     for samples_data_set, label, output in zip(
         [ms_samples_data_set, sw_samples_data_set], ["MS", "SW"], outputs
@@ -35,13 +36,13 @@ def main():
         samples_data_set["|B|"] = samples_data_set["|B|"].apply(
             lambda x: list(map(float, x.strip("[]").split(",")))
         )
-        samples_data_set["B_x"] = samples_data_set["B_x"].apply(
+        samples_data_set["Bx"] = samples_data_set["Bx"].apply(
             lambda x: list(map(float, x.strip("[]").split(",")))
         )
-        samples_data_set["B_y"] = samples_data_set["B_y"].apply(
+        samples_data_set["By"] = samples_data_set["By"].apply(
             lambda x: list(map(float, x.strip("[]").split(",")))
         )
-        samples_data_set["B_z"] = samples_data_set["B_z"].apply(
+        samples_data_set["Bz"] = samples_data_set["Bz"].apply(
             lambda x: list(map(float, x.strip("[]").split(",")))
         )
 
@@ -83,20 +84,20 @@ def Get_Features(input):
         )
 
         # Each feature return will be a list with the calculation for each component
-        mean = np.mean([row["|B|"], row["B_x"], row["B_y"], row["B_z"]], axis=1)
-        median = np.median([row["|B|"], row["B_x"], row["B_y"], row["B_z"]], axis=1)
-        std = np.std([row["|B|"], row["B_x"], row["B_y"], row["B_z"]], axis=1)
+        mean = np.mean([row["|B|"], row["Bx"], row["By"], row["Bz"]], axis=1)
+        median = np.median([row["|B|"], row["Bx"], row["By"], row["Bz"]], axis=1)
+        std = np.std([row["|B|"], row["Bx"], row["By"], row["Bz"]], axis=1)
         skew = scipy.stats.skew(
-            [row["|B|"], row["B_x"], row["B_y"], row["B_z"]], axis=1
+            [row["|B|"], row["Bx"], row["By"], row["Bz"]], axis=1
         )
         kurtosis = scipy.stats.kurtosis(
-            [row["|B|"], row["B_x"], row["B_y"], row["B_z"]], axis=1
+            [row["|B|"], row["Bx"], row["By"], row["Bz"]], axis=1
         )
 
         dip = np.array(
             [
                 diptest.diptest(np.array(row[component]))
-                for component in ["|B|", "B_x", "B_y", "B_z"]
+                for component in ["|B|", "Bx", "By", "Bz"]
             ]
         )
 
@@ -104,14 +105,14 @@ def Get_Features(input):
 
 
         try:
-            crossing_start = dt.datetime.strptime(row["crossing_start"], "%Y-%m-%d %H:%M:%S.%f")
+            crossing_start = dt.datetime.strptime(row["Crossing Start"], "%Y-%m-%d %H:%M:%S.%f")
         except:
-            crossing_start = dt.datetime.strptime(row["crossing_start"], "%Y-%m-%d %H:%M:%S")
+            crossing_start = dt.datetime.strptime(row["Crossing Start"], "%Y-%m-%d %H:%M:%S")
 
         try:
-            sample_start = dt.datetime.strptime(row["sample_start"], "%Y-%m-%d %H:%M:%S.%f")
+            sample_start = dt.datetime.strptime(row["Sample Start"], "%Y-%m-%d %H:%M:%S.%f")
         except:
-            sample_start = dt.datetime.strptime(row["sample_start"], "%Y-%m-%d %H:%M:%S")
+            sample_start = dt.datetime.strptime(row["Sample Start"], "%Y-%m-%d %H:%M:%S")
 
         if label == "SW":
             # Solar wind sample is before the crossing
@@ -131,43 +132,53 @@ def Get_Features(input):
             else:
                 is_inbound = 1
 
+        else:
+            raise Exception(f"Unknown sample label: {label}, expected 'SW' or 'MS'")
+
 
     finally:
         spice.kclear()
 
     return {
         # Time identifiers
-        "crossing_start": row["crossing_start"],
-        "crossing_end": row["crossing_end"],
-        "sample_start": row["sample_start"],
-        "sample_end": row["sample_end"],
+        "Crossing Start": row["Crossing Start"],
+        "Crossing End": row["Crossing End"],
+        "Sample Start": row["Sample Start"],
+        "Sample End": row["Sample End"],
         # Parameters
-        "mean": mean,
-        "median": median,
-        "std": std,
-        "skew": skew,
-        "kurtosis": kurtosis,
-        "RH": row["RH"],
-        "LT": row["LT"],
-        "Lat": row["Lat"],
-        "MLat": row["MLat"],
-        "x_msm": row["x_msm"],
-        "y_msm": row["y_msm"],
-        "z_msm": row["z_msm"],
-        "dip_stat": dip[:, 0],
-        "dip_p_value": dip[:, 1],
-        "grazing_angle": grazing_angle,
-        "is_inbound": is_inbound,
+        "Mean": mean,
+        "Median": median,
+        "Standard Deviation": std,
+        "Skew": skew,
+        "Kurtosis": kurtosis,
+        "Heliocentric Distance (AU)": row["Heliocentric Distance (AU)"],
+        "Local Time (hrs)": row["Local Time (hrs)"],
+        "Latitude (deg.)": row["Latitude (deg.)"],
+        "Magnetic Latitude (deg.)": row["Magnetic Latitude (deg.)"],
+        "X MSM' (radii)": row["X MSM' (radii)"],
+        "Y MSM' (radii)": row["Y MSM' (radii)"],
+        "Z MSM' (radii)": row["Z MSM' (radii)"],
+        "Dip Statistic": dip[:, 0],
+        "Dip P-Value": dip[:, 1],
+        "Grazing Angle (deg.)": grazing_angle,
+        "Is Inbound?": is_inbound,
     }
 
 
 def Get_Grazing_Angle(row):
-    # Find grazing angle
+    """
+    We find the closest position on the Winslow (2013) average BS model
+    Assuming any expansion / compression occurs parallel to the normal vector
+    of the curve, the vector to the closest point on the bow shock to MESSENGER
+    is parallel with the bow shock normal at that closest point
+    
+    We then compare this vector, with the velocity vector of the spacecraft.
+    """
     try:
-        start_time = dt.datetime.strptime(row["crossing_start"], "%Y-%m-%d %H:%M:%S.%f")
+        start_time = dt.datetime.strptime(row["Crossing Start"], "%Y-%m-%d %H:%M:%S.%f")
 
     except:
-        start_time = dt.datetime.strptime(row["crossing_start"], "%Y-%m-%d %H:%M:%S")
+        start_time = dt.datetime.strptime(row["Crossing Start"], "%Y-%m-%d %H:%M:%S")
 
     start_position = traj.Get_Position(
         "MESSENGER",
@@ -182,7 +193,7 @@ def Get_Grazing_Angle(row):
 
     velocity = next_position - start_position
 
-    # We find the closest position on the Winslow (2013) BS model
+    # Winslow+ (2013) parameters
     initial_x = 0.5
     psi = 1.04
     p = 2.75
