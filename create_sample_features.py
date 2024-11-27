@@ -7,7 +7,7 @@ import multiprocessing
 
 import diptest
 import hermpy.trajectory as traj
-from hermpy.utils import User
+from hermpy.utils import User, Constants
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -165,7 +165,7 @@ def Get_Features(input):
     }
 
 
-def Get_Grazing_Angle(row):
+def Get_Grazing_Angle(row, function="bow shock"):
     """
     We find the closest position on the Winslow (2013) average BS model
     Assuming any expansion / compression occurs parallel to the normal vector
@@ -184,68 +184,87 @@ def Get_Grazing_Angle(row):
         "MESSENGER",
         start_time,
         frame="MSM",
-    )
+        aberrate=True,
+    ) / Constants.MERCURY_RADIUS_KM
+
     next_position = traj.Get_Position(
         "MESSENGER",
         start_time + dt.timedelta(seconds=1),
         frame="MSM",
-    )
+        aberrate=True,
+    ) / Constants.MERCURY_RADIUS_KM
 
-    velocity = next_position - start_position
+    cylindrical_start_position = np.array([start_position[0], np.sqrt(start_position[1] ** 2 + start_position[2] ** 2)])
+    cylindrical_next_position = np.array([next_position[0], np.sqrt(next_position[1] ** 2 + next_position[2] ** 2)])
 
-    # Winslow+ (2013) parameters
-    initial_x = 0.5
-    psi = 1.04
-    p = 2.75
+    cylindrical_velocity = cylindrical_next_position - cylindrical_start_position
 
-    L = psi * p
+    # normalise velocity
+    cylindrical_velocity /= np.sqrt( np.sum(cylindrical_velocity ** 2) )
 
-    phi = np.linspace(0, 2 * np.pi, 1000)
-    rho = L / (1 + psi * np.cos(phi))
+    match function:
+        case "bow shock":
+            # Winslow+ (2013) parameters
+            initial_x = 0.5
+            psi = 1.04
+            p = 2.75
 
-    bow_shock_x_coords = initial_x + rho * np.cos(phi)
-    bow_shock_y_coords = rho * np.sin(phi)
-    bow_shock_z_coords = rho * np.sin(phi)
+            L = psi * p
 
-    bow_shock_positions = np.array(
-        [bow_shock_x_coords, bow_shock_y_coords, bow_shock_z_coords]
-    ).T
+            phi = np.linspace(0, 2 * np.pi, 10000)
+            rho = L / (1 + psi * np.cos(phi))
 
-    # Initialise some crazy big value
-    shortest_distance = 10000
-    closest_position = 0
+            # Cylindrical coordinates (X, R)
+            bow_shock_x_coords = initial_x + rho * np.cos(phi)
+            bow_shock_r_coords = rho * np.sin(phi)
 
-    for i, bow_shock_position in enumerate(bow_shock_positions):
+            boundary_positions = np.array(
+                [bow_shock_x_coords, bow_shock_r_coords]
+            ).T
 
-        distance_to_position = np.sqrt(
-            (start_position[0] - bow_shock_position[0]) ** 2
-            + (start_position[1] - bow_shock_position[1]) ** 2
-            + (start_position[2] - bow_shock_position[2]) ** 2
-        )
+        case "magnetopause":
+            # Winslow+ (2013) parameters
 
-        if distance_to_position < shortest_distance:
-            shortest_distance = distance_to_position
-            closest_position = i
+            sub_solar_point = 1.45  # radii
+            alpha = 0.5
 
-        else:
-            continue
+            phi = np.linspace(0, 2 * np.pi, 10000)
+            rho = sub_solar_point * (2 / (1 + np.cos(phi))) ** alpha
+
+            # Cylindrical coordinates (X, R)
+            magnetopause_x_coords = rho * np.cos(phi)
+            magnetopause_r_coords = rho * np.sin(phi)
+
+            boundary_positions = np.array(
+                [magnetopause_x_coords, magnetopause_r_coords]
+            ).T
+
+        case _:
+            raise ValueError( f"Invalid function choice: {function}. Options are 'bow shock', 'magnetopause'.")
+
+
+    # This is setup is faster than iterrating through the points.
+    # O(logN) vs O(N)
+    kd_tree = scipy.spatial.KDTree(boundary_positions)
+    
+    _, index = kd_tree.query(cylindrical_start_position)
+    closest_position = index
 
     # Get the normal vector of the BS at this point
     # This is just the normalised vector between the spacecraft and the closest point
-    normal_vector = bow_shock_positions[closest_position] - start_position
+    normal_vector = boundary_positions[closest_position] - cylindrical_start_position
+
     normal_vector = normal_vector / np.sqrt(np.sum(normal_vector**2))
 
-    grazing_angle = (
-        np.arccos(
-            np.dot(normal_vector, velocity)
-            / (np.sqrt(np.sum(normal_vector**2)) + np.sqrt(np.sum(velocity**2)))
-        )
-        * 180
-        / np.pi
-    )
+    grazing_angle = np.arccos(
+                        np.dot(normal_vector, cylindrical_velocity)
+                        / (np.sqrt(np.sum(normal_vector**2)) + np.sqrt( np.sum(cylindrical_velocity ** 2) ))
+                    )
+    grazing_angle = Constants.RADIANS_TO_DEGREES(grazing_angle)
 
     # If the grazing angle is greater than 90, then we take 180 - angle as its from the other side
-    # This occurs as we don't make an assumption as to what side of the model boundary we are
+    # This occurs as we don't make an assumption as to what side of the model boundary we are.
+    # i.e. we could be referencing the normal, or the anti-normal.
 
     if grazing_angle > 90:
         grazing_angle = 180 - grazing_angle

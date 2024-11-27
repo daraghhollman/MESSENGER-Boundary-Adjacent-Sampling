@@ -64,6 +64,9 @@ def Get_Sample(row):
         root_dir, sample_start, sample_end, strip=True, aberrate=True
     )
 
+    if len(sample['|B|']) - 600 > 2:
+        raise ValueError(f"Samples larger than to 600: N={len(sample['|B|'])}\nSample Start: {sample_start}\nSample End: {sample_end}")
+
     sample_middle = sample.iloc[round(len(sample) / 2)]
     sample_middle_position = np.array(
         [
@@ -85,7 +88,8 @@ def Get_Sample(row):
             mercury_position[0] ** 2
             + mercury_position[1] ** 2
             + mercury_position[2] ** 2
-        ) * Constants.KM_TO_AU
+        )
+        heliocentric_distance = Constants.KM_TO_AU(heliocentric_distance)
 
 
     return {
