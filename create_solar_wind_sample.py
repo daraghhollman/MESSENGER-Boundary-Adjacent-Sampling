@@ -67,6 +67,9 @@ def Get_Sample(row):
     if len(sample['|B|']) - 600 > 2:
         raise ValueError(f"Samples larger than to 600: N={len(sample['|B|'])}\nSample Start: {sample_start}\nSample End: {sample_end}")
 
+    # Remove data spikes
+    mag.Remove_Spikes(sample)
+
     sample_middle = sample.iloc[round(len(sample) / 2)]
     sample_middle_position = np.array(
         [
