@@ -175,7 +175,7 @@ def Get_Magnetosheath_Sample(row):
     latitude = trajectory.Latitude(sample_middle_position)
     magnetic_latitude = trajectory.Magnetic_Latitude(sample_middle_position)
 
-    with spice.KernelPool(User.METAKERNEL):
+    with spice.KernelPool(utils.User.METAKERNEL):
         et = spice.str2et(sample_middle["date"].strftime("%Y-%m-%d %H:%M:%S"))
         mercury_position, _ = spice.spkpos("MERCURY", et, "J2000", "NONE", "SUN")
 

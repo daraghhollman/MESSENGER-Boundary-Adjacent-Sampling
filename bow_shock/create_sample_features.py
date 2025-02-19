@@ -6,7 +6,7 @@ import datetime as dt
 import multiprocessing
 
 import diptest
-import hermpy.trajectory as traj
+from hermpy import trajectory
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -194,7 +194,7 @@ def Get_Grazing_Angle(row, function="bow shock"):
         end_time = dt.datetime.strptime(row["Crossing End"], "%Y-%m-%d %H:%M:%S")
 
     start_position = (
-        traj.Get_Position(
+        trajectory.Get_Position(
             "MESSENGER",
             start_time + (end_time - start_time) / 2,
             frame="MSM",
@@ -204,7 +204,7 @@ def Get_Grazing_Angle(row, function="bow shock"):
     )
 
     next_position = (
-        traj.Get_Position(
+        trajectory.Get_Position(
             "MESSENGER",
             start_time + (end_time - start_time) / 2 + dt.timedelta(seconds=1),
             frame="MSM",

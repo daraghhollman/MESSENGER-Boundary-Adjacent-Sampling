@@ -132,7 +132,7 @@ def Get_Magnetosheath_Sample(row):
         sample_start = row["End Time"]
         sample_end = row["End Time"] + sample_length
 
-        if current_index < len(bow_shocks) - 1:
+        if current_index < len(magnetopauses) - 1:
             # we need to enure we don't go past another boundary
             next_crossing = crossings.iloc[current_index + 1]
             if sample_end > next_crossing["Start Time"]:
@@ -232,9 +232,10 @@ magnetosphere_samples = pd.DataFrame(magnetosphere_samples)
 print("")
 
 magnetosphere_samples.to_csv(
-    f"/home/daraghhollman/Main/Work/mercury/DataSets/magnetopause/solar_wind_sample_{int(sample_length.total_seconds() / 61)}_mins.csv"
+    f"/home/daraghhollman/Main/Work/mercury/DataSets/magnetopause/magnetosphere_sample_{int(sample_length.total_seconds() / 60)}_mins.csv"
 )
 
+"""
 # Create empty list of dictionaries
 magnetosheath_samples = []
 
@@ -256,3 +257,4 @@ print("")
 magnetosheath_samples.to_csv(
     f"/home/daraghhollman/Main/Work/mercury/DataSets/magnetopause/magnetosheath_sample_{int(sample_length.total_seconds() / 60)}_mins.csv"
 )
+"""
